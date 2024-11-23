@@ -66,6 +66,7 @@ print(data_df.head())
 # Drop the 'Week Ending' column
 data_np = data_df.drop(columns=['Week Ending']).values  # Shape: (431, 20)
 
+
 print(f"\nDataset shape (weeks, features): {data_np.shape}")  # Expected: (431, 20)
 
 # Split the data into training and testing sets
@@ -146,5 +147,4 @@ for idx, loader in enumerate(train_loaders):
 for X_batch, y_batch in test_loader:
     print(f"\nTest Loader - Input Batch Shape: {X_batch.shape}")        # (115, 4, 20)
     print(f"Test Loader - Label Batch Shape: {y_batch.shape}")        # (115,)
-    print(X_batch[114])
     break  # Only one batch
