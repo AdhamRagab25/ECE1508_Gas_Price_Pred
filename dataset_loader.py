@@ -126,7 +126,7 @@ test_loader = DataLoader(
     test_dataset, 
     batch_size=100,  # Adjust as needed
     shuffle=False,
-    drop_last=False
+    drop_last=True
 )
 
 # Verify the number of batches
