@@ -83,8 +83,8 @@ print(f"\nTraining Data Shape: {train_data.shape}")  # Expected: (312, 20)
 print(f"Test Data Shape: {test_data.shape}")        # Expected: (119, 20) 
 
 # Split the training data into 3 periods of 104 weeks each
-num_periods = 3
-weeks_per_period = 104
+num_periods = 1
+weeks_per_period = 312
 
 train_periods = [
     train_data[i * weeks_per_period : (i + 1) * weeks_per_period]
@@ -116,7 +116,7 @@ print(f"Number of Test Samples: {len(test_dataset)}")  # Expected: 115 (119 -4)
 train_loaders = [
     DataLoader(
         dataset, 
-        batch_size=100, 
+        batch_size=308, 
         shuffle=False
     ) 
     for dataset in train_datasets
