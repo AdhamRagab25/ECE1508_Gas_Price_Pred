@@ -8,7 +8,7 @@ This module contains the training for the LSTM model for predicting gas prices.
 """
 
 # define loss function as Huber loss
-loss_function = nn.HuberLoss()
+LSTM_LOSS_FUNCTION = nn.HuberLoss()
 
 def train(model, train_loader, loss_function, num_epochs):
     optimizer = optim.Adam(model.parameters())
