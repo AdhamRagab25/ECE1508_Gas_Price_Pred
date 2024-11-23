@@ -124,8 +124,9 @@ train_loaders = [
 # Create DataLoader for test set with a larger batch size
 test_loader = DataLoader(
     test_dataset, 
-    batch_size=115,  # Adjust as needed
-    shuffle=False
+    batch_size=100,  # Adjust as needed
+    shuffle=False,
+    drop_last=False
 )
 
 # Verify the number of batches
@@ -145,4 +146,5 @@ for idx, loader in enumerate(train_loaders):
 for X_batch, y_batch in test_loader:
     print(f"\nTest Loader - Input Batch Shape: {X_batch.shape}")        # (115, 4, 20)
     print(f"Test Loader - Label Batch Shape: {y_batch.shape}")        # (115,)
+    print(X_batch[114])
     break  # Only one batch
