@@ -7,10 +7,9 @@ import torch
 import torch.nn as nn
 
 class LSTM(nn.Module):
-    def __init__(self, batch_size, seq_len, hidden_dim):
+    def __init__(self, seq_len, hidden_dim):
         super(LSTM, self).__init__()
         self.hidden_dim = hidden_dim
-        self.batch_size = batch_size
         self.seq_len = seq_len
         # There are 20 features in the input data
         self.input_dim = 20
@@ -21,12 +20,13 @@ class LSTM(nn.Module):
         
         self.output_layer = nn.Linear(self.hidden_dim, self.output_dim)
         
-    def initialize_hidden_state(self):
-        return (torch.zeros(1, self.batch_size, self.hidden_dim),
-                torch.zeros(1, self.batch_size, self.hidden_dim))
+    def initialize_hidden_state(self, batch_size):
+        return (torch.zeros(1, batch_size, self.hidden_dim),
+                torch.zeros(1, batch_size, self.hidden_dim))
         
     def forward(self, x):
-        hidden_state = self.initialize_hidden_state()
+        batch_size = x.size(0)
+        hidden_state = self.initialize_hidden_state(batch_size)
         lstm_out, hidden_state = self.lstm(x, hidden_state)
         output = self.output_layer(lstm_out[:, -1, :])
         return output
