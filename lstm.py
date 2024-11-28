@@ -11,8 +11,8 @@ class LSTM(nn.Module):
         super(LSTM, self).__init__()
         self.hidden_dim = hidden_dim
         self.seq_len = seq_len
-        # There are 20 features in the input data
-        self.input_dim = 20
+        # There are 11 features in the input data
+        self.input_dim = 11
         # The output is a single value describing the gas price
         self.output_dim = 1
         
