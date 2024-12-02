@@ -4,9 +4,9 @@ from dataset_loader_val import *
 from lstm import *
 import torch.optim as optim
 import matplotlib.pyplot as plt
-import torch.nn as nn
 
-def train(model, train_loader, val_loader, loss_function, num_epochs, patience=2, test_loader=None):
+
+def train(model, train_loader, val_loader, loss_function, num_epochs, patience=2):
     """
     Trains the LSTM model with Early Stopping.
 
@@ -30,8 +30,10 @@ def train(model, train_loader, val_loader, loss_function, num_epochs, patience=2
     best_val_loss = float('inf')
     epochs_no_improve = 0
     early_stop = False
+    final_epoch = 0  # Track the last epoch
 
     for epoch in range(1, num_epochs + 1):
+        final_epoch = epoch  # Update the last epoch
         model.train()
         train_loss = 0.0
 
@@ -62,8 +64,6 @@ def train(model, train_loader, val_loader, loss_function, num_epochs, patience=2
                 val_loss += loss.item()
         avg_val_loss = val_loss / len(val_loader)
         validation_losses.append(avg_val_loss)
-        if epoch%num_epochs==0:
-            print(f"Epoch [{epoch}/{num_epochs}], Training Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
 
         # Check for improvement
         if avg_val_loss < best_val_loss:
@@ -77,6 +77,9 @@ def train(model, train_loader, val_loader, loss_function, num_epochs, patience=2
             print("Early stopping triggered.")
             early_stop = True
             break
+
+    # Print the final epoch's losses
+    print(f"Epoch [{final_epoch}/{num_epochs}], Training Loss: {avg_train_loss:.4f}, Validation Loss: {avg_val_loss:.4f}")
 
     if not early_stop:
         print("Training completed without early stopping.")

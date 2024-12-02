@@ -1,16 +1,14 @@
 # final_model_shap.py
 
 # Import necessary libraries and modules
-from run_model_val import best_seq_length, best_hdim, best_batch_size, csv_file_path
 from lstm import LSTM
 from train_val import train
 from dataset_loader_val import load_and_split_data
 from test_val import test
 import torch.nn as nn
 import torch
-import shap
 import matplotlib.pyplot as plt
-import numpy as np
+import shap
 
 # ================== Configuration ==================
 
@@ -22,9 +20,58 @@ PATIENCE_FINAL = 3         # Early Stopping patience
 TRAIN_WEEKS = 327          # Number of weeks for training
 VAL_WEEKS = 52             # Number of weeks for validation
 
-# SHAP Parameters
-BACKGROUND_SIZE = 100      # Number of background samples for SHAP
-INSTANCES_TO_EXPLAIN = 52  # Number of test instances to explain
+# Hyperparameters (Set them directly here)
+best_seq_length = 1        # Example sequence length
+best_hdim = 10             # Example hidden dimension
+best_batch_size = 1        # Example batch size
+
+# Path to your CSV file
+csv_file_path = 'Normalized_Weekly_Gasoline_Data__2016-2024_Reduced.csv'  # Updated path
+# csv_file_path = 'Normalized_Weekly_Gasoline_Data__2016-2024_.csv'     # Full dataset path
+
+# ================== Define Feature Names Based on CSV Path ==================
+
+# Define feature names based on the exact CSV file path
+if csv_file_path == 'Normalized_Weekly_Gasoline_Data__2016-2024_Reduced.csv':
+    # Feature names for reduced dataset
+    feature_names = [
+        "Price",
+        "Taxes",
+        "Marketing Margin",
+        "Refining Margin",
+        "Avg Max Temp (°C)",
+        "Avg Min Temp (°C)",
+        "Avg Precip (mm)",
+        "Total CPI, (seasonally adjusted)",
+        "W.BCPI",
+        "W.ENER",
+        "Fuel Tax Rate"
+    ]
+elif csv_file_path == 'Normalized_Weekly_Gasoline_Data__2016-2024_.csv':
+    # Feature names for full dataset
+    feature_names = [
+        "Price",
+        "Taxes",
+        "Marketing Margin",
+        "Refining Margin",
+        "Avg Max Temp (°C)",
+        "Avg Min Temp (°C)",
+        "Avg Mean Temp (°C)",
+        "Avg Precip (mm)",
+        "Total CPI",
+        "Total CPI, (seasonally adjusted)",
+        "Total CPI, Percentage Change over 1 year ago (unadjusted)",
+        "CPI_TRIM",
+        "CPI_MEDIAN",
+        "CPI_COMMON",
+        "CPIX, Percentage Change over 1 year ago (unadjusted)",
+        "CPI-XFET, Percentage Change over 1 year ago (unadjusted)",
+        "CPIW",
+        "W.BCPI",
+        "W.ENER",
+        "Fuel Tax Rate"
+    ]
+
 
 # ================== Load and Split Data ==================
 
@@ -40,9 +87,8 @@ train_loader, val_loader, test_loader = load_and_split_data(
 # ================== Initialize the Model ==================
 
 print("\n=== Initializing the Final LSTM Model ===")
+input_dim = len(feature_names)
 final_model = LSTM(seq_len=best_seq_length, hidden_dim=best_hdim)
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-final_model.to(device)
 
 # Define loss function
 final_loss_function = nn.HuberLoss()
@@ -62,12 +108,67 @@ final_training_losses, final_validation_losses = train(
 # ================== Evaluate the Model on Test Set ==================
 
 print("\n=== Evaluating Final Model on Test Set ===")
-final_test_loss = test(
+avg_test_loss, test_predictions, test_targets = test(
     model=final_model,
     loss_function=final_loss_function,
     test_loader=test_loader
 )
-print(f"Final Test Loss: {final_test_loss:.4f}")
+print(f"Final Test Loss: {avg_test_loss:.4f}")
+
+# ================== Denormalize Predictions and Targets ==================
+
+# Given normalization parameters
+mean_price = 131.12529
+std_price = 25.35632458
+
+# Denormalize predictions and targets
+denorm_predictions = test_predictions * std_price + mean_price
+denorm_targets = test_targets * std_price + mean_price
+
+# Compute differences
+differences = denorm_predictions - denorm_targets
+
+# ================== Compute RMSE ==================
+
+def compute_rmse(predictions, targets):
+    """
+    Computes the Root Mean Squared Error between predictions and targets.
+
+    Args:
+        predictions (torch.Tensor): Predicted values.
+        targets (torch.Tensor): Actual target values.
+
+    Returns:
+        float: RMSE value.
+    """
+    mse = torch.mean((predictions - targets) ** 2)
+    rmse = torch.sqrt(mse)
+    return rmse.item()
+
+# Calculate RMSE
+rmse = compute_rmse(denorm_predictions, denorm_targets)
+print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
+
+# ================== Plot Differences ==================
+
+def plot_differences(denorm_predictions, denorm_targets, differences):
+    """
+    Plots the denormalized predictions, denormalized targets, and their differences.
+    """
+    plt.figure(figsize=(12, 6))
+    plt.plot(denorm_targets.numpy(), label='Actual Price', color='blue')
+    plt.plot(denorm_predictions.numpy(), label='Predicted Price', color='orange')
+    plt.plot(differences.numpy(), label='Difference (Predicted - Actual)', color='green')
+    plt.title('Denormalized Actual vs Predicted Prices and Their Differences')
+    plt.xlabel('Sample')
+    plt.ylabel('Price')
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+
+# Plot the differences
+plot_differences(denorm_predictions, denorm_targets, differences)
 
 # ================== Plot Training and Validation Losses ==================
 
@@ -97,116 +198,80 @@ print("\n=== Applying SHAP for Model Explainability ===")
 # Set the model to evaluation mode
 final_model.eval()
 
-# ------------------ Step 1: Prepare Background Data for SHAP ------------------
-print(f"\n--- Preparing Background Data (First {BACKGROUND_SIZE} Test Samples) ---")
-background = []
-with torch.no_grad():
-    for i, (inputs, _) in enumerate(test_loader):
-        if i >= BACKGROUND_SIZE:
-            break
-        background.append(inputs)
-if not background:
-    print("No background samples available. Exiting SHAP explanation.")
-    exit()
-background = torch.cat(background, dim=0).to(device)  # Shape: (BACKGROUND_SIZE, seq_length, num_features)
-
-print(f"Type of background: {type(background)}")
-print(f"Shape of background: {background.shape}")
+# ------------------ Step 1: Prepare Background for SHAP ------------------
+print("\n--- Preparing Background for SHAP ---")
+# Creating a zero background with the same shape as one input batch
+background = torch.zeros(1, best_seq_length, final_model.input_dim)
+print(f"Zero background shape: {background.shape}")
 
 # ------------------ Step 2: Initialize SHAP Explainer ------------------
 print("\n--- Initializing SHAP GradientExplainer ---")
-try:
-    explainer = shap.GradientExplainer(final_model, background)
-except Exception as e:
-    print(f"Error initializing SHAP GradientExplainer: {e}")
-    exit()
+explainer = shap.GradientExplainer(final_model, background)
 
-# ------------------ Step 3: Select Instances to Explain ------------------
-print(f"\n--- Selecting {INSTANCES_TO_EXPLAIN} Test Instances to Explain ---")
+# ------------------ Step 3: Collect All Test Instances ------------------
+print("\n--- Collecting All Test Instances ---")
 instances = []
 with torch.no_grad():
-    for i, (inputs, _) in enumerate(test_loader):
-        if i >= INSTANCES_TO_EXPLAIN:
-            break
+    for inputs, _ in test_loader:
         instances.append(inputs)
-if not instances:
-    print("No instances available for explanation. Exiting SHAP explanation.")
-    exit()
-instances = torch.cat(instances, dim=0).to(device)  # Shape: (INSTANCES_TO_EXPLAIN, seq_length, num_features)
-
-print(f"Type of instances: {type(instances)}")
-print(f"Shape of instances: {instances.shape}")
+instances = torch.cat(instances, dim=0)  # Concatenate all test batches into one tensor
+print(f"Instances shape: {instances.shape}")  # Shape: (total_test_samples, seq_length, num_features)
 
 # ------------------ Step 4: Compute SHAP Values ------------------
 print("\n--- Computing SHAP Values ---")
-try:
-    shap_values = explainer.shap_values(instances)
-except Exception as e:
-    print(f"Error computing SHAP values: {e}")
-    exit()
+shap_values = explainer.shap_values(instances)
+
 
 # shap_values is a list where each element corresponds to a model output
-# Since it's regression with a single output, shap_values[0] corresponds to the output
 if isinstance(shap_values, list):
-    shap_values = shap_values[0]
-# Shape: (INSTANCES_TO_EXPLAIN, seq_length, num_features)
+    shap_values = shap_values[0]  # For regression, focus on the single output
 
-print(f"Shape of shap_values: {shap_values.shape}")
+# Shape: (total_test_samples, seq_length, num_features)
+print(f"SHAP values shape: {shap_values.shape}")
 
 # ------------------ Step 5: Aggregate SHAP Values ------------------
-print("\n--- Aggregating SHAP Values Across All Test Samples ---")
+print("\n--- Aggregating SHAP Values for Feature and Time-Step Importance ---")
 
-# Compute the average SHAP values across all samples
-average_shap_values = np.mean(shap_values, axis=0)  # Shape: (seq_length, num_features)
+# Convert shap_values from torch tensor to numpy if necessary
+if isinstance(shap_values, torch.Tensor):
+    shap_values = shap_values.numpy()
 
-print(f"Shape of average_shap_values: {average_shap_values.shape}")
+# Aggregate feature importance across time steps for each feature
+feature_importance = shap_values.mean(axis=(0, 1))  # Shape: (num_features,)
+print(f"Feature Importance Shape: {feature_importance.shape}")
 
-# ------------------ Step 6: Plot Average SHAP Heatmap ------------------
-def plot_average_shap_heatmap(avg_shap, feature_names, seq_length):
-    """
-    Plots the average SHAP heatmap across all test samples.
-    """
-    plt.figure(figsize=(16, 8))
-    plt.imshow(avg_shap, aspect='auto', cmap='coolwarm', interpolation='nearest')
-    plt.colorbar(label='Average SHAP value')
-    plt.xlabel('Features')
-    plt.ylabel('Time Steps')
-    plt.title('Average SHAP Values Heatmap Across Test Dataset')
-    plt.xticks(ticks=np.arange(len(feature_names)), labels=feature_names, rotation=90)
-    plt.yticks(ticks=np.arange(seq_length), labels=[f"Step {k+1}" for k in range(seq_length)])
+# Aggregate time-step importance across features for each time step
+time_step_importance = shap_values.mean(axis=(0, 2))  # Shape: (seq_length,)
+print(f"Time-Step Importance Shape: {time_step_importance.shape}")
+
+# ------------------ Step 6: Visualize Feature and Time-Step Importance ------------------
+
+def plot_feature_importance(feature_importance, feature_names):
+    """Plots feature importance as a bar chart."""
+    feature_importance = feature_importance.flatten()  # Convert to 1D
+    plt.figure(figsize=(10, 6))
+    plt.barh(range(len(feature_names)), feature_importance, align='center', color='skyblue')
+    plt.yticks(range(len(feature_names)), feature_names)
+    plt.xlabel("Mean SHAP Value")
+    plt.title("Feature Importance")
     plt.tight_layout()
     plt.show()
 
-# Hardcoded feature names as provided
-feature_names = [
-    "Price",
-    "Taxes",
-    "Marketing Margin",
-    "Refining Margin",
-    "Avg Max Temp (°C)",
-    "Avg Min Temp (°C)",
-   # "Avg Mean Temp (°C)",
-    "Avg Precip (mm)",
-   # "Total CPI",
-    "Total CPI, (seasonally adjusted)",
-   # "Total CPI, Percentage Change over 1 year ago (unadjusted)",
-   # "CPI_TRIM",
-    #"CPI_MEDIAN",
-   # "CPI_COMMON",
-   # "CPIX, Percentage Change over 1 year ago (unadjusted)",
-   # "CPI-XFET, Percentage Change over 1 year ago (unadjusted)",
-   # "CPIW",
-    "W.BCPI",
-    "W.ENER",
-    "Fuel Tax Rate"
-]
+def plot_time_step_importance(time_step_importance, seq_length):
+    """Plots time step importance as a line chart."""
+    time_step_importance = time_step_importance.flatten()  # Convert to 1D
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(1, seq_length + 1), time_step_importance, marker='o', linestyle='-', color='green')
+    plt.xticks(range(1, seq_length + 1))
+    plt.xlabel("Time Step")
+    plt.ylabel("Mean SHAP Value")
+    plt.title("Time-Step Importance")
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
+# Plot feature importance
+plot_feature_importance(feature_importance, feature_names)
 
-
-# Verify that the number of feature names matches input_dim
-assert len(feature_names) == average_shap_values.shape[1], (
-    f"Number of feature names ({len(feature_names)}) does not match input_dim ({average_shap_values.shape[1]})"
-)
-
-# Plot the average SHAP heatmap
-plot_average_shap_heatmap(average_shap_values, feature_names, best_seq_length)
+# Plot time-step importance
+plot_time_step_importance(time_step_importance, best_seq_length)

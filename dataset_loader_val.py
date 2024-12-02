@@ -94,6 +94,7 @@ def load_and_split_data(csv_file_path, seq_length=4, train_weeks=312, val_weeks=
     val_dataset = GasolineDataset(val_data, seq_length=SEQ_LENGTH)
     test_dataset = GasolineDataset(test_data, seq_length=SEQ_LENGTH)
 
+    print(f"Sequence Length:{seq_length}")
     print(f"Number of Training Samples: {len(train_dataset)}")   # 312 - 4 = 308
     print(f"Number of Validation Samples: {len(val_dataset)}")   # 52 - 4 = 48
     print(f"Number of Test Samples: {len(test_dataset)}")         # 67 - 4 = 63
@@ -107,7 +108,7 @@ def load_and_split_data(csv_file_path, seq_length=4, train_weeks=312, val_weeks=
 
     print(f"Training Loader: {len(train_loader)} batches")
     print(f"Validation Loader: {len(val_loader)} batches")
-    print(f"Test Loader: {len(test_loader)} batch(es) (should always be 1)")
+    print(f"Test Loader: {len(test_loader)} batch")
 
     return train_loader, val_loader, test_loader
 
