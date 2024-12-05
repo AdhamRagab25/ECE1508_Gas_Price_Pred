@@ -13,8 +13,8 @@ import shap
 # ================== Configuration ==================
 
 # Final Training Parameters
-NUM_EPOCHS_FINAL = 30      # Number of epochs for final training
-PATIENCE_FINAL = 3         # Early Stopping patience
+NUM_EPOCHS_FINAL = 30      # Number of epochs for final training 
+PATIENCE_FINAL = 2         # Early Stopping patience
 
 # Data Parameters
 TRAIN_WEEKS = 327          # Number of weeks for training
@@ -22,8 +22,8 @@ VAL_WEEKS = 52             # Number of weeks for validation
 
 # Hyperparameters (Set them directly here)
 best_seq_length = 1        # Example sequence length
-best_hdim = 10             # Example hidden dimension
-best_batch_size = 1        # Example batch size
+best_hdim =130             # Example hidden dimension
+best_batch_size = 128        # Example batch size
 
 # Path to your CSV file
 csv_file_path = 'Normalized_Weekly_Gasoline_Data__2016-2024_Reduced.csv'  # Updated path
@@ -87,7 +87,6 @@ train_loader, val_loader, test_loader = load_and_split_data(
 # ================== Initialize the Model ==================
 
 print("\n=== Initializing the Final LSTM Model ===")
-input_dim = len(feature_names)
 final_model = LSTM(seq_len=best_seq_length, hidden_dim=best_hdim)
 
 # Define loss function
@@ -126,7 +125,8 @@ denorm_predictions = test_predictions * std_price + mean_price
 denorm_targets = test_targets * std_price + mean_price
 
 # Compute differences
-differences = denorm_predictions - denorm_targets
+
+differences = 100*(denorm_predictions - denorm_targets)/denorm_targets
 
 # ================== Compute RMSE ==================
 
@@ -151,24 +151,32 @@ print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
 
 # ================== Plot Differences ==================
 
-def plot_differences(denorm_predictions, denorm_targets, differences):
-    """
-    Plots the denormalized predictions, denormalized targets, and their differences.
-    """
-    plt.figure(figsize=(12, 6))
-    plt.plot(denorm_targets.numpy(), label='Actual Price', color='blue')
-    plt.plot(denorm_predictions.numpy(), label='Predicted Price', color='orange')
-    plt.plot(differences.numpy(), label='Difference (Predicted - Actual)', color='green')
-    plt.title('Denormalized Actual vs Predicted Prices and Their Differences')
-    plt.xlabel('Sample')
-    plt.ylabel('Price')
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
+"""
+Plots the denormalized predictions, denormalized targets, and their differences.
+"""
+
+plt.figure(figsize=(12, 6))
+plt.plot(denorm_targets.numpy(), label='Actual Price', color='blue')
+plt.plot(denorm_predictions.numpy(), label='Predicted Price', color='orange')
+plt.title('Denormalized Actual vs Predicted Prices and Their Differences')
+plt.xlabel('Sample')
+plt.ylabel('Price')
+plt.legend()
+plt.grid(True)
+plt.tight_layout()
+plt.show()
 
 # Plot the differences
-plot_differences(denorm_predictions, denorm_targets, differences)
+
+plt.figure(figsize=(12, 6))
+plt.plot(differences.numpy(), label='Difference (Predicted - Actual)', color='green')
+plt.title('Denormalized Actual vs Predicted Prices and Their Differences')
+plt.xlabel('Sample')
+plt.ylabel('Price')
+plt.legend()
+plt.tight_layout()
+plt.grid(True)
+plt.show()
 
 # ================== Plot Training and Validation Losses ==================
 

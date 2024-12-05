@@ -10,10 +10,10 @@ import itertools
 # ================== Configuration ==================
 
 # Hyperparameter Grid
-SEQ_LENGTHS = [1,2,4,16]   # List of SEQ_LENGTHs to tune
-HDIM_LIST = [5,10,15,20]               # List of Hidden Dimensions to tune
-BATCH_SIZES = [1,2,4,8,32]             # List of Batch Sizes to tune
-N_RUNS = 1                             # Number of runs per hyperparameter combination
+SEQ_LENGTHS = [1]   # List of SEQ_LENGTHs to tune
+HDIM_LIST = [100,120,130,150]               # List of Hidden Dimensions to tune
+BATCH_SIZES = [64,128,256]             # List of Batch Sizes to tune
+N_RUNS = 100                             # Number of runs per hyperparameter combination
 TRAIN_WEEKS = 327                     # Number of weeks for training
 VAL_WEEKS = 52                         # Number of weeks for validation
 NUM_EPOCHS = 25                        # Number of training epochs

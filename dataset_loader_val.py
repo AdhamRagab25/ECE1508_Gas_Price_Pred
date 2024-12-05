@@ -14,25 +14,23 @@ class GasolineDataset(Dataset):
             seq_length (int): Number of past weeks to use for each input sequence.
         """
         self.seq_length = seq_length
-        self.X, self.y = self.create_sequences(data, seq_length)
+        self.X, self.y = self.create_sequences(data)
 
-    @staticmethod
-    def create_sequences(data, seq_length=4):
+    def create_sequences(self, data):
         """
         Creates input-output pairs for the dataset.
 
         Args:
             data (np.ndarray): Array of shape (num_weeks, num_features).
-            seq_length (int): Number of past weeks to use for each input sequence.
 
         Returns:
             Tuple[np.ndarray, np.ndarray]: Arrays of input sequences and labels.
         """
         X = []
         y = []
-        for i in range(len(data) - seq_length):
-            X.append(data[i:i + seq_length])
-            y.append(data[i + seq_length, 0])  # Assuming 'Price' is the first feature
+        for i in range(len(data) - self.seq_length):
+            X.append(data[i:i + self.seq_length])
+            y.append(data[i + self.seq_length, 0])  # Assuming 'Price' is the first feature
         return np.array(X, dtype=np.float32), np.array(y, dtype=np.float32)
 
     def __len__(self):
@@ -49,6 +47,7 @@ class GasolineDataset(Dataset):
             Tuple[torch.Tensor, torch.Tensor]: Input sequence and corresponding label.
         """
         return torch.tensor(self.X[idx]), torch.tensor(self.y[idx])
+
 
 def load_and_split_data(csv_file_path, seq_length=4, train_weeks=312, val_weeks=52, batch_size=64):
     """
@@ -94,7 +93,7 @@ def load_and_split_data(csv_file_path, seq_length=4, train_weeks=312, val_weeks=
     val_dataset = GasolineDataset(val_data, seq_length=SEQ_LENGTH)
     test_dataset = GasolineDataset(test_data, seq_length=SEQ_LENGTH)
 
-    print(f"Sequence Length:{seq_length}")
+    print(f"Sequence Length: {seq_length}")
     print(f"Number of Training Samples: {len(train_dataset)}")   # 312 - 4 = 308
     print(f"Number of Validation Samples: {len(val_dataset)}")   # 52 - 4 = 48
     print(f"Number of Test Samples: {len(test_dataset)}")         # 67 - 4 = 63
@@ -111,6 +110,3 @@ def load_and_split_data(csv_file_path, seq_length=4, train_weeks=312, val_weeks=
     print(f"Test Loader: {len(test_loader)} batch")
 
     return train_loader, val_loader, test_loader
-
-
-    
